@@ -63,6 +63,58 @@ describe("runCli", () => {
     expect(json.package.name).toBe("fixture");
   });
 
+  it("keeps terminal and JSON output aligned on core report fields", async () => {
+    const root = path.resolve("fixtures/suspicious-mcp-server");
+    const outDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-server-intake-json-"));
+    const out = path.join(outDir, "report.json");
+    const stdout = capture();
+    const stderr = capture();
+    const code = await runCli(["inspect", "--path", root, "--json-out", out], {
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      cwd: process.cwd()
+    });
+    const json = JSON.parse(await fs.readFile(out, "utf8"));
+    const text = stdout.text();
+
+    expect(code).toBe(0);
+    expect(stderr.text()).toBe("");
+    expect(json.package.name).toBe("suspicious-mcp-server");
+    expect(json.label).toBe("elevated_review");
+    expect(text).toContain("Package: suspicious-mcp-server@0.0.0");
+    expect(text).toContain(`Final intake label: ${json.label}`);
+    expect(text).toContain("MCP tool name literal found [clone_repo]");
+    expect(json.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "MCP tool name literal found",
+          value: "clone_repo"
+        })
+      ])
+    );
+  });
+
+  it("does not include secret-looking assigned values in terminal or JSON output", async () => {
+    const root = await tempPackage();
+    await fs.mkdir(path.join(root, "src"));
+    await fs.writeFile(path.join(root, "src", "index.ts"), 'const API_TOKEN = "super-secret-value";\n');
+    const out = path.join(root, "report.json");
+    const stdout = capture();
+    const stderr = capture();
+    const code = await runCli(["inspect", "--path", root, "--json-out", out], {
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      cwd: process.cwd()
+    });
+    const jsonText = await fs.readFile(out, "utf8");
+
+    expect(code).toBe(0);
+    expect(stderr.text()).toBe("");
+    expect(stdout.text()).not.toContain("super-secret-value");
+    expect(jsonText).not.toContain("super-secret-value");
+    expect(jsonText).toContain("[redacted]");
+  });
+
   it("rejects json-out paths that match inspected input files", async () => {
     const root = await tempPackage();
     const stdout = capture();

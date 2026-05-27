@@ -18,9 +18,12 @@ describe("discoverPackage", () => {
   it("keeps discovery inside root and skips ignored directories and symlinks", async () => {
     const root = await tempPackage();
     await fs.mkdir(path.join(root, "src"));
-    await fs.mkdir(path.join(root, "node_modules"));
     await fs.writeFile(path.join(root, "src", "index.ts"), "export const x = 1;\n", "utf8");
-    await fs.writeFile(path.join(root, "node_modules", "ignored.js"), "fetch('x')\n", "utf8");
+
+    for (const directory of [".git", ".next", "build", "coverage", "dist", "node_modules", "vendor"]) {
+      await fs.mkdir(path.join(root, "src", directory));
+      await fs.writeFile(path.join(root, "src", directory, "ignored.ts"), "fetch('x')\n", "utf8");
+    }
 
     const outside = path.join(os.tmpdir(), `outside-${Date.now()}.ts`);
     await fs.writeFile(outside, "export const outside = true;\n", "utf8");
@@ -31,9 +34,10 @@ describe("discoverPackage", () => {
 
     expect(paths).toContain("package.json");
     expect(paths).toContain("src/index.ts");
-    expect(paths).not.toContain("node_modules/ignored.js");
+    expect(paths.some((filePath) => filePath.endsWith("/ignored.ts"))).toBe(false);
     expect(paths).not.toContain("src/outside.ts");
     expect(discovery.skipped.some((item) => item.relativePath === "src/outside.ts")).toBe(true);
+    expect(discovery.skipped.filter((item) => item.reason === "skipped directory")).toHaveLength(7);
   });
 
   it("respects file and total byte limits", async () => {
@@ -51,5 +55,22 @@ describe("discoverPackage", () => {
     expect(large?.bytesRead).toBeLessThanOrEqual(50);
     expect(large?.truncated).toBe(true);
     expect(discovery.totalBytesRead).toBeLessThanOrEqual(120);
+  });
+
+  it("rejects package.json files that exceed configured scan limits", async () => {
+    const root = await tempPackage();
+    await fs.writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "fixture", filler: "x".repeat(200) }),
+      "utf8"
+    );
+
+    await expect(
+      discoverPackage(root, {
+        maxFileBytes: 80,
+        maxTotalBytes: 1024,
+        maxFiles: 10
+      })
+    ).rejects.toThrow(/package\.json exceeds configured scan limits/);
   });
 });

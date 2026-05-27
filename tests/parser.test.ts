@@ -96,5 +96,25 @@ describe("parseDiscovery", () => {
 
   it("redacts secret-looking assigned values", () => {
     expect(sanitizeForReport("API_TOKEN=abc123 npm start")).toBe("API_TOKEN=[redacted] npm start");
+    expect(sanitizeForReport('const API_TOKEN = "abc123";')).toBe(
+      'const API_TOKEN = "[redacted]";'
+    );
+    expect(sanitizeForReport("token: abc123")).toBe("token: [redacted]");
+  });
+
+  it("redacts secret-looking values in parsed excerpts and package descriptions", () => {
+    const discovery = discoveryWithSource('const API_TOKEN = "super-secret-value";\n');
+    discovery.packageJson = {
+      name: "fixture",
+      version: "0.0.0",
+      description: "API_TOKEN=description-secret"
+    };
+
+    const parsed = parseDiscovery(discovery);
+    const json = JSON.stringify(parsed);
+
+    expect(json).not.toContain("super-secret-value");
+    expect(json).not.toContain("description-secret");
+    expect(json).toContain("[redacted]");
   });
 });

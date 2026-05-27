@@ -20,7 +20,7 @@ const README_HINT_PATTERN =
   /\b(mcp|tool|server|setup|install|configure|configuration|env|token|api\s*key|credential|command|permission)\b/i;
 
 const SECRET_ASSIGNMENT_PATTERN =
-  /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASS|KEY|CREDENTIAL)[A-Z0-9_]*=)([^\s"'`]+)/gi;
+  /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASS|KEY|CREDENTIAL)[A-Z0-9_]*\s*[:=]\s*)(["'`]?)([^\s"'`;,)\]\[{}]+)/gi;
 
 type FindingInput = Omit<Finding, "id">;
 
@@ -93,7 +93,7 @@ export function parsePackageSummary(packageJson: unknown): PackageSummary {
   return {
     name: optionalString(pkg.name),
     version: optionalString(pkg.version),
-    description: optionalString(pkg.description),
+    description: optionalSanitizedString(pkg.description),
     scripts,
     bin,
     dependencies,
@@ -104,9 +104,14 @@ export function parsePackageSummary(packageJson: unknown): PackageSummary {
 
 export function sanitizeForReport(value: string, maxLength = 220): string {
   const redacted = value
-    .replace(SECRET_ASSIGNMENT_PATTERN, "$1[redacted]")
+    .replace(SECRET_ASSIGNMENT_PATTERN, (_match, prefix: string, quote: string) => {
+      return `${prefix}${quote}[redacted]`;
+    })
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 [redacted]")
-    .replace(/\b(api[_-]?key|token|secret|password)\s*[:=]\s*['"]?[^'"\s]+/gi, "$1=[redacted]")
+    .replace(
+      /\b(api[_-]?key|apiKey|access[_-]?token|token|secret|password)\s*[:=]\s*(["'`]?)[^\s"'`;,)\]\[{}]+/gi,
+      (_match, key: string, quote: string) => `${key}=${quote}[redacted]`
+    )
     .replace(/\s+/g, " ")
     .trim();
 
@@ -169,7 +174,7 @@ function parseBinEntries(value: unknown, packageName: unknown): BinEntrypointSur
     return [
       {
         name: typeof packageName === "string" ? packageName : "default",
-        path: value
+        path: sanitizeForReport(value)
       }
     ];
   }
@@ -181,7 +186,7 @@ function parseBinEntries(value: unknown, packageName: unknown): BinEntrypointSur
   return Object.entries(value)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, entryPath]) => ({ name, path: entryPath }));
+    .map(([name, entryPath]) => ({ name, path: sanitizeForReport(entryPath) }));
 }
 
 function dependencyNames(value: unknown): string[] {
@@ -619,6 +624,10 @@ function comparePathLine(aPath: string, aLine: number, bPath: string, bLine: num
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function optionalSanitizedString(value: unknown): string | undefined {
+  return typeof value === "string" ? sanitizeForReport(value) : undefined;
 }
 
 function isSimpleName(value: string): boolean {

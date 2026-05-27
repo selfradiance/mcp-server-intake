@@ -72,8 +72,9 @@ Rule logic is deterministic and implemented in `src/classifier.ts`.
 mcp-server-intake v0.1.0
 Path: /path/to/package
 Package: suspicious-mcp-server@0.0.0
+Description: Fixture package with elevated-review static intake surfaces.
 Scanned files: 4
-Scanned bytes: 1052
+Scanned bytes: 1018
 
 Package summary
 - Scripts:
@@ -92,10 +93,18 @@ Declared MCP/tool-surface findings
 Execution-surface findings
 - F001 Package bin entrypoint declared [suspicious-mcp-server]: suspicious-mcp-server: bin/setup.js
 - F002 Package install hook script declared [postinstall]: postinstall: node bin/setup.js
-- F006 src/server.ts:7 Environment access pattern found [process.env]: Environment access pattern present: process.env.
-- F007 src/server.ts:8 Shell command interpolation from input-like value: A command-like string includes interpolation or construction from params/input/args/path/repo/branch/url/query.
-- F008 src/server.ts:9 Filesystem mutation call found [writeFile]: Call to writeFile() is present in scanned source.
-- F009 src/server.ts:10 child_process method call found [exec]: Call to exec() is present in scanned source.
+- F003 bin/setup.js Executable-looking file in command directory: File is located under bin/, scripts/, or cli/.
+- F004 bin/setup.js:1 Shebang file found: Source file begins with a shebang. | #!/usr/bin/env node
+- F006 src/server.ts:11 Credential-looking identifier found [token]: A credential-looking identifier name is present in scanned source. | const token = [redacted];
+- F007 src/server.ts:11 Environment access pattern found [process.env]: Environment access pattern present: process.env. | const token = [redacted];
+- F008 src/server.ts:12 Shell command interpolation from input-like value: A command-like string includes interpolation or construction from params/input/args/path/repo/branch/url/query. | const command = `git clone ${input.repo} ${input.path}`;
+- F009 src/server.ts:13 Filesystem mutation call found [writeFile]: Call to writeFile() is present in scanned source. | await writeFile(`${input.path}/token.txt`, token ?? "");
+- F010 src/server.ts:14 child_process method call found [exec]: Call to exec() is present in scanned source. | exec(command);
+
+README/setup hints
+- Hints:
+  - README.md:1 # suspicious-mcp-server
+  - README.md:3 Fixture package with a setup command and an MCP tool-like source declaration.
 
 Capability category summary
 - mcp_tool_surface: 1
@@ -106,9 +115,15 @@ Capability category summary
 - env_access: 1
 - credential_surface: 1
 - package_script_surface: 1
-- bin_entrypoint: 2
+- bin_entrypoint: 3
 - dynamic_code: 0
 - unknown: 0
+
+Label reasons
+- Bin entrypoint appears alongside shell/process-related patterns.
+- F002: Package install hook script declared
+- F008: Shell command interpolation from input-like value
+- F010: child_process method call found
 
 Final intake label: elevated_review
 ```

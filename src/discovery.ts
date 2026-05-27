@@ -53,7 +53,7 @@ export async function discoverPackage(
   const packageJsonPath = path.join(rootPath, "package.json");
   await assertRegularFileInsideRoot(packageJsonPath, rootPath, "package.json");
 
-  const packageText = await fs.readFile(packageJsonPath, "utf8");
+  const packageText = await readPackageJson(packageJsonPath, limits);
   const packageJson = parsePackageJson(packageText, packageJsonPath);
   const candidates = new Map<string, Candidate>();
 
@@ -107,6 +107,19 @@ function parsePackageJson(text: string, packageJsonPath: string): unknown {
     const detail = error instanceof Error ? error.message : String(error);
     throw new IntakeError(`Invalid package.json at ${packageJsonPath}: ${detail}`);
   }
+}
+
+async function readPackageJson(packageJsonPath: string, limits: ScanLimits): Promise<string> {
+  const stat = await fs.stat(packageJsonPath);
+  const maxPackageBytes = Math.min(limits.maxFileBytes, limits.maxTotalBytes);
+
+  if (stat.size > maxPackageBytes) {
+    throw new IntakeError(
+      `package.json exceeds configured scan limits (${stat.size} bytes > ${maxPackageBytes} bytes)`
+    );
+  }
+
+  return fs.readFile(packageJsonPath, "utf8");
 }
 
 async function resolvePackageRoot(inputPath: string): Promise<string> {
