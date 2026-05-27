@@ -1,0 +1,6 @@
+{
+  "name": "benign-mcp-server",
+  "version": "0.0.0",
+  "description": "Fixture package with no notable static intake surfaces.",
+  "type": "module"
+}

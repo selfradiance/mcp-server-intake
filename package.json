@@ -1,0 +1,32 @@
+{
+  "name": "mcp-server-intake",
+  "version": "0.1.0",
+  "description": "Static intake report CLI for one local MCP server package.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/selfradiance/mcp-server-intake.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "mcp-server-intake": "./dist/cli.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "demo:benign": "npm run build --silent && node dist/cli.js inspect --path fixtures/benign-mcp-server",
+    "demo:suspicious": "npm run build --silent && node dist/cli.js inspect --path fixtures/suspicious-mcp-server"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
