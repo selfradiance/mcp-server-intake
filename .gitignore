@@ -3,3 +3,4 @@ dist/
 coverage/
 .DS_Store
 *.log
+MCP_SERVER_INTAKE_PROJECT_CONTEXT.md
